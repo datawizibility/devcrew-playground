@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, CheckConstraint, String, UniqueConstraint
+from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import TenantMixin
@@ -16,8 +16,4 @@ class User(TenantMixin):
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "email", name="uq_users_tenant_email"),
-        CheckConstraint(
-            "role IN ('admin', 'ap_team', 'approver', 'viewer')",
-            name="ck_users_role_valid",
-        ),
     )

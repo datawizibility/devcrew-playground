@@ -1,4 +1,7 @@
 import asyncio
+import os
+import subprocess
+import sys
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -19,7 +22,17 @@ async def test_database():
     await drop_test_database()
     await create_test_database()
     engine = create_async_engine(settings.database_url_test)
-    # Migrations are applied by Task 4's fixture once models exist.
     yield engine
     await engine.dispose()
     await drop_test_database()
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def applied_migrations(test_database):
+    env = dict(os.environ)
+    env["DATABASE_URL"] = settings.database_url_test
+    subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        check=True,
+        env=env,
+    )

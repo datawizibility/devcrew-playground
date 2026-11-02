@@ -23,6 +23,22 @@ END
 $$;
 """
 
+# Deviation: the docker postgres image bootstraps `smartap` as a superuser,
+# and superusers always bypass RLS even with FORCE ROW LEVEL SECURITY. Demote
+# it (createdb/createrole attributes are retained) so the owner connection
+# used by dev/tests is actually subject to the tenant_isolation policy.
+DEMOTE_SMARTAP = """
+DO $demote$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_roles WHERE rolname = 'smartap' AND rolsuper
+    ) THEN
+        ALTER ROLE smartap NOSUPERUSER;
+    END IF;
+END
+$demote$;
+"""
+
 
 def upgrade() -> None:
     op.execute(TENANT_POLICY)
@@ -47,6 +63,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_users_tenant_id", "users", ["tenant_id"])
 
+    # Row-level security on users
     op.execute("ALTER TABLE users ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE users FORCE ROW LEVEL SECURITY")
     op.execute(
@@ -56,6 +73,9 @@ def upgrade() -> None:
     op.execute("GRANT USAGE ON SCHEMA public TO smartap_app")
     op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO smartap_app")
     op.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO smartap_app")
+
+    # Must run last: everything above still needs superuser privileges.
+    op.execute(DEMOTE_SMARTAP)
 
 
 def downgrade() -> None:

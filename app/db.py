@@ -23,9 +23,15 @@ async def get_db() -> AsyncIterator[AsyncSession]:
 
 
 async def set_tenant(session: AsyncSession, tenant_id: uuid.UUID) -> None:
-    """Set app.tenant_id for Postgres RLS within the current transaction."""
+    """Set app.tenant_id for Postgres RLS within the current transaction.
+
+    Deviation: uses set_config() because Postgres does not accept bind
+    parameters in `SET LOCAL` statements (server-side syntax error).
+    set_config(..., is_local=true) is equivalent to SET LOCAL.
+    """
     await session.execute(
-        text("SET LOCAL app.tenant_id = :tid"), {"tid": str(tenant_id)}
+        text("SELECT set_config('app.tenant_id', :value, true)"),
+        {"value": str(tenant_id)},
     )
 
 

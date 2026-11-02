@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 import pytest
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import settings
 from app.db import create_test_database, drop_test_database
@@ -27,6 +27,9 @@ async def test_database():
     await drop_test_database()
 
 
+# Deviation: migrations run via subprocess because alembic/env.py spins up its
+# own asyncio loop (async_engine_from_config), which conflicts with pytest's
+# running loop when using in-process command.upgrade.
 @pytest.fixture(scope="session", autouse=True)
 async def applied_migrations(test_database):
     env = dict(os.environ)
